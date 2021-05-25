@@ -1,19 +1,13 @@
 /**
-   "Zero Deflection" Assistive Technology Joystick
+   Permobil Wheelchair Controller
 
-   Uses strain gauges to measure force on a joystick that doesn't
-   need to deflect. The joystick output is taken from the force
-   applied to it, instead of the physical deflection of the stick.
-   This allows it to be used by people with limited range of motion.
-
-   The sensitivity of the joystick can be adjusted in software by
-   changing the scaling of the values detected by the strain
-   gauges.
+   Simulates a wheelchair joystick using I2C digital potentiometers,
+   so that a Permobil wheelchair can be controlled electronically.
 
    The term "position" is used through the code to signify the
    virtual position of the joystick, even though it doesn't physically
-   move. As more force is applied, the virtual position of the
-   joystick is considered to change.
+   exist. The virtual position of the joystick is then mapped to
+   the outputs that connect to the original wheelchair controller.
 
    Position is measured as % deflection from the zero (central)
    position, ie: from -100% to +100%. This is equivalent to full
@@ -28,61 +22,18 @@
                        v
                      -100%
 
-   These percentages are scaled to suit different output methods,
-   including mouse emulation and joystick emulation.
-
    Internal dependencies. Install using Arduino library manager:
      "SparkFun Qwiic Scale NAU7802" by SparkFun Electronics
-     "Arduino TinyUSB" by Adafruit
-
-   External dependencies. Install manually:
-     "Arduino Joystick Library" by Matthew Heironimus https://github.com/MHeironimus/ArduinoJoystickLibrary
-
-   NOTE: The official Joystick library doesn't support SAMD, so if
-   you want to enable joystick output on a board such as the Seeed
-   XIAO you must download and install this patched version:
-     https://github.com/JingleheimerSE/ArduinoJoystickLibrary
-
-   Compiling for mouse output:
-     For Seeed XIAO, select "Tools -> USB Stack -> TinyUSB"
-
-   Compiling for joystick output:
-     For Seeed XIAO, select "Tools -> USB Stack -> Arduino"
-
-   Handy utility to test game controller emulation:
-     https://gamepad-tester.com/
 
    More information:
-     www.superhouse.tv/zerostick
+     www.superhouse.tv/pwc
 
    To do:
     - Zero offsets are currently hard-coded. These should be set at startup
       and when tare is run.
     - Do we need setZeroOffset() after calculateZeroOffset() in setup?
 
-   Leonardo pin assignments:
-     A0:
-     A1:
-     A2:
-     A3:
-     A4:
-     A5:
-     D0:
-     D1:
-     D2:  SDA
-     D3:  SCL
-     D4:  LOADCELL_X_SCK_PIN
-     D5:  LOADCELL_X_DOUT_PIN
-     D6:  LOADCELL_Y_SCK_PIN
-     D7:  LOADCELL_Y_DOUT_PIN
-     D8:  Disable pin
-     D9:
-     D10:
-     D11:
-     D12:
-     D13: LED_PIN
-
-   XIAO pin assignments:
+   ESP32 pin assignments:
      D0:
      D1:
      D2:
@@ -95,15 +46,13 @@
      D9:
      D10:
 
-   227g (Pocophone) = 920000 reading
-
    By:
     Chris Fryer <chris.fryer78@gmail.com>
     Jonathan Oxer <jon@oxer.com.au>
 
-   Copyright 2019-2021 SuperHouse Automation Pty Ltd www.superhouse.tv
+   Copyright 2021 SuperHouse Automation Pty Ltd www.superhouse.tv
 */
-#define VERSION "2.6"
+#define VERSION "1.0"
 /*--------------------------- Configuration ---------------------------------*/
 // Configuration should be done in the included file:
 #include "config.h"
@@ -112,20 +61,6 @@
 #include <Wire.h>
 #include "SparkFun_Qwiic_Scale_NAU7802_Arduino_Library.h" // Load cell amplifier
 #include <RunningMedian.h>          // By Rob Tillaart
-
-// Conditionally include the correct library based on target architecture
-#if ENABLE_MOUSE_OUTPUT
-#ifdef ARDUINO_SEEED_XIAO_M0
-#include "Adafruit_TinyUSB.h"       // HID emulation
-#endif
-#ifdef ARDUINO_AVR_LEONARDO
-#include "Mouse.h"                  // Mouse emulation
-#endif
-#endif
-
-#if ENABLE_GAMEPAD_OUTPUT
-#include <Joystick.h>               // Joystick emulation
-#endif
 
 #if ENABLE_DIGIPOT_OUTPUT
 #include <Adafruit_DS3502.h>        // Digital potentiometer
@@ -138,12 +73,7 @@ int16_t  g_zero_tare_offset_y    = -320;   // Y axis tare correction
 int32_t  g_input_x_position      = 0;   // Most recent force reading from X axis (+/- %)
 int32_t  g_input_y_position      = 0;   // Most recent force reading from Y axis (+/- %)
 
-uint32_t g_last_mouse_time       = 0;   // When we last sent a mouse event
-uint32_t g_last_joystick_time    = 0;   // When we last sent a joystick event
 uint32_t g_last_digipot_time     = 0;   // When we last updated the digipot outputs
-
-uint8_t  g_b0_button_state       = 0;
-uint8_t  g_b1_button_state       = 0;
 
 int32_t  g_x_zero_offset         = 0;
 int32_t  g_y_zero_offset         = 0;
@@ -151,16 +81,6 @@ uint8_t  g_next_channel_to_read  = 0;   // 0 = X axis, 1 = Y axis
 uint8_t  g_channel_read_count    = 0;   // Accumulate how many times channel has been read
 int32_t  g_sensor_raw_value_sum  = 0;   // Accumulate channel readings
 
-#if ENABLE_MOUSE_OUTPUT
-#ifdef ARDUINO_SEEED_XIAO_M0
-//  HID report descriptor using TinyUSB's template.
-//  Single Report (no ID) descriptor
-uint8_t const g_hid_descriptor_report[] =
-{
-  TUD_HID_REPORT_DESC_MOUSE()
-};
-#endif
-#endif
 
 /*--------------------------- Function Signatures ---------------------------*/
 
@@ -171,22 +91,6 @@ NAU7802 loadcells;
 
 RunningMedian x_samples = RunningMedian(5);
 RunningMedian y_samples = RunningMedian(5);
-
-#if ENABLE_MOUSE_OUTPUT
-#ifdef ARDUINO_SEEED_XIAO_M0
-Adafruit_USBD_HID usb_hid;
-#endif
-#endif
-
-#if ENABLE_GAMEPAD_OUTPUT
-// Configure the virtual gamepad device
-Joystick_ Joystick(JOYSTICK_DEFAULT_REPORT_ID, JOYSTICK_TYPE_GAMEPAD,
-                   2, 0,                  // Button Count, Hat Switch Count
-                   true, true, false,     // X and Y, but no Z Axis
-                   false, false, false,   // No Rx, Ry, or Rz
-                   false, false,          // No rudder or throttle
-                   false, false, false);  // No accelerator, brake, or steering
-#endif
 
 #if ENABLE_DIGIPOT_OUTPUT
 Adafruit_DS3502 digipot_x = Adafruit_DS3502();
@@ -203,36 +107,13 @@ void setup()
   //while (!Serial) {
   //  ; // wait for serial port to connect. Needed for native USB port only
   //}
-  Serial.print("ZeroStick starting up, v");
+  Serial.print("Permobil Wheelchair Controller starting up, v");
   Serial.println(VERSION);
-
-#ifdef ARDUINO_SEEED_XIAO_M0
-  Serial.println("Xiao");
-#endif
 
   Wire.begin();
 
   pinMode(DISABLE_PIN,      INPUT_PULLUP);
   pinMode(TARE_BUTTON_PIN,  INPUT_PULLUP);
-  pinMode(B0_BUTTON_PIN,    INPUT_PULLUP);
-  pinMode(B1_BUTTON_PIN,    INPUT_PULLUP);
-
-#if ENABLE_MOUSE_OUTPUT
-#ifdef ARDUINO_SEEED_XIAO_M0
-  usb_hid.setPollInterval(2);
-  usb_hid.setReportDescriptor(g_hid_descriptor_report, sizeof(g_hid_descriptor_report));
-  usb_hid.begin();
-  // wait until device mounted
-  while ( !USBDevice.mounted() ) delay(1);
-#endif
-#endif
-
-#if ENABLE_GAMEPAD_OUTPUT
-  // Initialise gamepad emulation
-  Joystick.begin();
-  Joystick.setXAxisRange(-JOYSTICK_AXIS_RANGE, JOYSTICK_AXIS_RANGE);
-  Joystick.setYAxisRange(-JOYSTICK_AXIS_RANGE, JOYSTICK_AXIS_RANGE);
-#endif
 
 #if ENABLE_DIGIPOT_OUTPUT
   if (!digipot_x.begin(DIGIPOT_X_I2C_ADDR)) {
@@ -275,12 +156,8 @@ void setup()
 void loop()
 {
   checkTareButton();
-  checkInputButtons();
-
   readInputPosition();
 
-  updateMouseOutput();
-  updateJoystickOutput();
   updateDigipotOutputs();
 }
 
@@ -298,169 +175,6 @@ void checkTareButton()
   }
 }
 
-/**
-  Send mouse movements to the computer.
-*/
-void updateMouseOutput()
-{
-#if ENABLE_MOUSE_OUTPUT
-  if (digitalRead(DISABLE_PIN) == HIGH) // Pull this pin low to disable
-  {
-#ifdef ARDUINO_SEEED_XIAO_M0
-    // Remote wakeup
-    if ( USBDevice.suspended() )
-    {
-      // Wake up host if we are in suspend mode
-      // and REMOTE_WAKEUP feature is enabled by host
-      USBDevice.remoteWakeup();
-    }
-#endif
-
-    if (millis() > g_last_mouse_time + MOUSE_INTERVAL)
-    {
-      // Computer screens use the top left corner as the coordinate origin. This
-      // means the Y axis is inverted: plus is down, minus is up. We have to
-      // reverse the Y axis value to match it to mouse movement.
-      float mouse_x_movement = MOUSE_X_SPEED * g_input_x_position * 1;  // X axis is not reversed
-      float mouse_y_movement = MOUSE_Y_SPEED * g_input_y_position * -1;  // Y axis is reversed
-
-#if ENABLE_MOUSE_DEBUGGING
-      Serial.println("Moving");
-#endif
-
-#ifdef ARDUINO_SEEED_XIAO_M0
-      if ( usb_hid.ready() )
-      {
-        usb_hid.mouseMove(0, mouse_x_movement, mouse_y_movement);  // no ID
-      }
-#endif
-
-#ifdef ARDUINO_AVR_LEONARDO
-      Mouse.move(mouse_x_movement, mouse_y_movement);
-#endif
-
-      g_last_mouse_time = millis();
-    }
-  }
-#endif
-}
-
-/**
-  Check whether input buttons have been pressed or released, and
-  send appropriate mouse or gamepad events.
-*/
-void checkInputButtons()
-{
-  uint8_t b0_button_state = digitalRead(B0_BUTTON_PIN);
-  if (LOW == b0_button_state)
-  {
-    if (HIGH == g_b0_button_state)
-    {
-#if ENABLE_MOUSE_OUTPUT
-#ifdef ARDUINO_SEEED_XIAO_M0
-      usb_hid.mouseButtonPress(0, 1);
-      Serial.println("Xiao left click");
-#endif
-#ifdef ARDUINO_AVR_LEONARDO
-      Mouse.press(MOUSE_LEFT);
-      Serial.println("Leonardo left click");
-#endif
-#endif
-
-#if ENABLE_GAMEPAD_OUTPUT
-      Joystick.pressButton(0);
-#endif
-      g_b0_button_state = LOW;
-    }
-  }
-  if (HIGH == b0_button_state)
-  {
-    if (LOW == g_b0_button_state)
-    {
-#if ENABLE_MOUSE_OUTPUT
-#ifdef ARDUINO_SEEED_XIAO_M0
-      usb_hid.mouseButtonRelease(0);
-#endif
-#ifdef ARDUINO_AVR_LEONARDO
-      Mouse.release(MOUSE_LEFT);
-#endif
-#endif
-
-#if ENABLE_GAMEPAD_OUTPUT
-      Joystick.releaseButton(0);
-#endif
-      Serial.println("release");
-      g_b0_button_state = HIGH;
-    }
-  }
-
-  uint8_t b1_button_state = digitalRead(B1_BUTTON_PIN);
-  if (LOW == b1_button_state)
-  {
-    if (HIGH == g_b1_button_state)
-    {
-#if ENABLE_MOUSE_OUTPUT
-#ifdef ARDUINO_SEEED_XIAO_M0
-      usb_hid.mouseButtonPress(0, 2);
-      Serial.println("Xiao right click");
-#endif
-#ifdef ARDUINO_AVR_LEONARDO
-      Mouse.press(MOUSE_RIGHT);
-      Serial.println("Leonardo right click");
-#endif
-#endif
-
-#if ENABLE_GAMEPAD_OUTPUT
-      Joystick.pressButton(1);
-#endif
-      g_b1_button_state = LOW;
-    }
-  }
-
-  if (HIGH == b1_button_state)
-  {
-    if (LOW == g_b1_button_state)
-    {
-#if ENABLE_MOUSE_OUTPUT
-#ifdef ARDUINO_SEEED_XIAO_M0
-      usb_hid.mouseButtonRelease(0);
-#endif
-#ifdef ARDUINO_AVR_LEONARDO
-      Mouse.release(MOUSE_RIGHT);
-#endif
-#endif
-#if ENABLE_GAMEPAD_OUTPUT
-      Joystick.releaseButton(1);
-#endif
-      Serial.println("release");
-      g_b1_button_state = HIGH;
-    }
-  }
-}
-
-/**
-  Send joystick values to the computer
-*/
-void updateJoystickOutput()
-{
-#if ENABLE_GAMEPAD_OUTPUT
-  if (digitalRead(DISABLE_PIN) == HIGH) // Pull this pin low to disable
-  {
-    if (millis() > g_last_joystick_time + JOYSTICK_INTERVAL)
-    {
-#if ENABLE_GAMEPAD_DEBUGGING
-      Serial.print(g_input_x_position);
-      Serial.print("  ");
-      Serial.println(g_input_y_position);
-#endif
-      Joystick.setYAxis((int)g_input_y_position * -1);  // Y axis is reversed
-      Joystick.setXAxis((int)g_input_x_position);
-
-      g_last_joystick_time = millis();
-    }
-  }
-#endif
-}
 
 /**
   Send joystick movements to a pair of digital potentiometers using
