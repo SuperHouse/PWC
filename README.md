@@ -1,36 +1,40 @@
-Chair I2C Interface
-===================
-Copyright 2020 SuperHouse Automation Pty Ltd <www.superhouse.tv>  
+Permobil Wheelchair Controller
+==============================
+Copyright 2021 SuperHouse Automation Pty Ltd <www.superhouse.tv>  
 Designed by Jonathan Oxer
 
 Connects to a Permobil electric wheelchair controller, and emulates the
 signals from a wheelchair joystick so that the chair can be controlled
-electronically. Provides an I2C interface for connection to a host
-microcontroller.
+electronically.
 
-Also exposes the "5th Button" and 12V 100mA chair power connections.
+Includes an I2C header so that a ZeroStick zero deflection joystick can
+be connected.
 
-![PCB](Images/CHAIRI2C-v1_0-oblique.jpg)
+Includes an ESP32 so that the chair can be controlled using WiFi or
+Bluetooth.
+
+Also exposes the "5th Button" input to the chair as a test point for
+experimentation.
+
+![PCB](Images/PWC-prototype.jpg)
 
 Features:
 
  * 1 x chair controller output.
- * I2C interface.
- * Derives 12V power from the host wheelchair controller.
- * Requires 2.7-5.5V external logic power.
+ * Derives 12V from the host wheelchair controller for reference
+    voltage..
+ * Requires 5V power via USB.
 
 More information is available at:
 
-  http://www.superhouse.tv/chairi2c
+  http://www.superhouse.tv/pwc
 
 
 INSTALLATION
 ------------
-The design is saved as an EAGLE project. EAGLE PCB design software is
-available from www.cadsoftusa.com free for non-commercial use. To use
-this project download it and place the directory containing these files
-into the "eagle" directory on your computer. Then open EAGLE and
-navigate to the project.
+The design is saved as an EAGLE project. To use this project download
+it and place the directory containing these files into the "eagle"
+directory on your computer. Then open EAGLE and navigate to the project.
 
 
 DISTRIBUTION
