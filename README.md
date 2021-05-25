@@ -16,7 +16,7 @@ Bluetooth.
 Also exposes the "5th Button" input to the chair as a test point for
 experimentation.
 
-![PCB](Images/PWC-prototype.jpg)
+![PCB](Images/PWC-v1_0-prototype.jpg)
 
 Features:
 
