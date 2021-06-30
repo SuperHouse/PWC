@@ -135,7 +135,6 @@ void setup()
 #ifdef ARDUINO_ARCH_ESP32
   Serial.println("Architecture detected: ESP32");
 #endif
-  delay(5000);
 
   Wire.begin();
 

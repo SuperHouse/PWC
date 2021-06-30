@@ -1,7 +1,7 @@
 /* ----------------- General config -------------------------------- */
 /* Input options */
 #define   ENABLE_ZEROSTICK           true
-#define   ENABLE_PS3_CONTROLLER      false
+#define   ENABLE_PS3_CONTROLLER      true
 #define   ENABLE_PS4_CONTROLLER      false
 
 /* Output options */
@@ -11,7 +11,7 @@
 #define   SERIAL_BAUD_RATE       115200  // Speed for USB serial console
 
 /* Debugging options */
-#define   ENABLE_DIGIPOT_DEBUGGING   false
+#define   ENABLE_DIGIPOT_DEBUGGING   true
 #define   ENABLE_ZEROSTICK_DEBUGGING false
 #define   ENABLE_PS3_DEBUGGING       false
 #define   ENABLE_PS4_DEBUGGING       false
