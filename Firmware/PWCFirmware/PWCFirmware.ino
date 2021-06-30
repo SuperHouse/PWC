@@ -24,6 +24,7 @@
 
    External dependencies. Install using Arduino library manager:
      "SparkFun Qwiic Scale NAU7802" by SparkFun Electronics
+     "PS3 Controller Host" by Jeffrey van Pernis https://github.com/jvpernis/esp32-ps3
 
    External dependencies. Install by downloading the ZIP file:
      "PS4-esp32" by aed3 https://github.com/aed3/PS4-esp32
@@ -35,6 +36,8 @@
      www.superhouse.tv/pwc
 
    To do:
+    - PS4 support is untested. I can't compile sixaxispairtool on my Mac at
+      the moment.
     - Zero offsets are currently hard-coded. These should be set at startup
       and when tare is run.
     - Do we need setZeroOffset() after calculateZeroOffset() in setup?
@@ -68,6 +71,9 @@
 #include <RunningMedian.h>          // By Rob Tillaart
 #if ENABLE_ZEROSTICK
 #include "SparkFun_Qwiic_Scale_NAU7802_Arduino_Library.h" // Load cell amplifier
+#endif
+#if ENABLE_PS3_CONTROLLER
+#include <Ps3Controller.h>          // By Jeffrey van Pernis
 #endif
 #if ENABLE_PS4_CONTROLLER
 #include <PS4Controller.h>          // By aed3
@@ -173,6 +179,12 @@ void setup()
   tareCellReadings();
 #endif ENABLE_ZEROSTICK
 
+#if ENABLE_PS3_CONTROLLER
+  //Ps3.attach(notify);
+  Ps3.attachOnConnect(ps3OnConnect);
+  Ps3.begin(BLE_MAC);
+#endif ENABLE_PS3_CONTROLLER
+
 #if ENABLE_PS4_CONTROLLER
   PS4.begin(BLE_MAC);
 #endif ENABLE_PS4_CONTROLLER
@@ -188,6 +200,11 @@ void loop()
   checkTareButton();
   readZerostickInputPosition();
 #endif ENABLE_ZEROSTICK
+
+#if ENABLE_PS3_CONTROLLER
+  readPs3InputPosition();
+  readPs3Battery();
+#endif ENABLE_PS3_CONTROLLER
 
 #if ENABLE_PS4_CONTROLLER
   readPs4InputPosition();
@@ -234,6 +251,10 @@ void updateDigipotOutputs()
       // X and Y are inverted for driving the pots
       int16_t pot_position_x = DIGIPOT_CENTER - (int)(g_input_x_position * DIGIPOT_SPEED * 63 / 100);
       int16_t pot_position_y = DIGIPOT_CENTER - (int)(g_input_y_position * DIGIPOT_SPEED * 63 / 100);
+
+      /* Apply scaling so we don't lose most of the joystick position scale */
+      pot_position_x = map(pot_position_x, 0, 127, 50, 80);
+      pot_position_y = map(pot_position_y, 0, 127, 50, 80);
 
       /* Apply constraints to prevent going out of range on Permobil wheelchair joystick input */
       pot_position_x = constrain(pot_position_x, 50, 80);
@@ -367,6 +388,86 @@ void tareCellReadings()
 #endif ENABLE_ZEROSTICK_DEBUGGING
 }
 #endif
+
+
+#if ENABLE_PS3_CONTROLLER
+/**
+   Report that a controller is connected
+*/
+void ps3OnConnect()
+{
+  Serial.println("PS3 controller connected.");
+}
+
+
+/**
+   Read and report the state of the controller battery
+*/
+void readPs3Battery()
+{
+#if ENABLE_PS3_DEBUGGING
+  uint8_t ps3_battery;
+  ps3_battery = Ps3.data.status.battery;
+  Serial.print("Controller battery is ");
+  if (ps3_battery == ps3_status_battery_charging)      Serial.println("charging");
+  else if (ps3_battery == ps3_status_battery_full)     Serial.println("FULL");
+  else if (ps3_battery == ps3_status_battery_high)     Serial.println("HIGH");
+  else if (ps3_battery == ps3_status_battery_low)      Serial.println("LOW");
+  else if (ps3_battery == ps3_status_battery_dying)    Serial.println("DYING");
+  else if (ps3_battery == ps3_status_battery_shutdown) Serial.println("SHUTDOWN");
+  else Serial.println("UNDEFINED");
+#endif ENABLE_PS3_DEBUGGING
+}
+
+/**
+   Read the right joystick from a paired PS4 controller (BLE)
+*/
+void readPs3InputPosition()
+{
+  if (Ps3.isConnected())
+  {
+    // Process the X axis
+    if (NULL != Ps3.data.analog.stick.lx)
+    {
+      int8_t x_position = Ps3.data.analog.stick.rx; // What type of values do we get? Decimals?
+#if ENABLE_PS3_DEBUGGING
+      Serial.printf("Right stick X at %d\n", x_position);
+#endif ENABLE_PS3_DEBUGGING
+      g_input_x_position = map(x_position, -PS3_FULL_SCALE, PS3_FULL_SCALE, -100, 100); // Adjust to a percentage of full force
+      g_input_x_position = constrain(g_input_x_position, -100, 100);          // Prevent going out of bounds
+
+      if (INPUT_DEAD_SPOT_SIZE < g_input_x_position)
+      {
+        g_input_x_position -= INPUT_DEAD_SPOT_SIZE;
+      } else if (-1 * INPUT_DEAD_SPOT_SIZE > g_input_x_position) {
+        g_input_x_position += INPUT_DEAD_SPOT_SIZE;
+      } else {
+        g_input_x_position = 0;
+      }
+    }
+
+    // Process the Y axis
+    if (NULL != Ps3.data.analog.stick.ly)
+    {
+      int8_t y_position = Ps3.data.analog.stick.ry; // What type of values do we get? Decimals?
+#if ENABLE_PS3_DEBUGGING
+      Serial.printf("Right stick Y at %d\n", y_position);
+#endif ENABLE_PS3_DEBUGGING
+      g_input_y_position = map(y_position, PS3_FULL_SCALE, -PS3_FULL_SCALE, -100, 100); // Adjust to a percentage of full force
+      g_input_y_position = constrain(g_input_y_position, -100, 100);          // Prevent going out of bounds
+
+      if (INPUT_DEAD_SPOT_SIZE < g_input_y_position)
+      {
+        g_input_y_position -= INPUT_DEAD_SPOT_SIZE;
+      } else if (-1 * INPUT_DEAD_SPOT_SIZE > g_input_y_position) {
+        g_input_y_position += INPUT_DEAD_SPOT_SIZE;
+      } else {
+        g_input_y_position = 0;
+      }
+    }
+  }
+}
+#endif ENABLE_PS3_CONTROLLER
 
 
 #if ENABLE_PS4_CONTROLLER
