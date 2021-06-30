@@ -61,7 +61,7 @@
 
    Copyright 2021 SuperHouse Automation Pty Ltd www.superhouse.tv
 */
-#define VERSION "2.0"
+#define VERSION "2.1"
 /*--------------------------- Configuration ---------------------------------*/
 // Configuration should be done in the included file:
 #include "config.h"
@@ -89,6 +89,8 @@ int16_t  g_zero_tare_offset_y    = -320;   // Y axis tare correction
 
 int32_t  g_input_x_position      = 0;   // Most recent force reading from X axis (+/- %)
 int32_t  g_input_y_position      = 0;   // Most recent force reading from Y axis (+/- %)
+
+uint8_t  g_ps_controller_enabled = false;
 
 uint32_t g_last_digipot_time     = 0;   // When we last updated the digipot outputs
 
@@ -166,9 +168,9 @@ void setup()
   if (loadcells.begin() == false)
   {
 #if ENABLE_ZEROSTICK_DEBUGGING
-    Serial.println("Not detected. Halting.");
+    Serial.println("Not detected.");
 #endif ENABLE_ZEROSTICK_DEBUGGING
-    while (1);
+    //while (1);
   }
 #if ENABLE_ZEROSTICK_DEBUGGING
   Serial.println("ok.");
@@ -196,10 +198,13 @@ void setup()
 */
 void loop()
 {
+  if (false == g_ps_controller_enabled)
+  {
 #if ENABLE_ZEROSTICK
-  checkTareButton();
-  readZerostickInputPosition();
+    checkTareButton();
+    readZerostickInputPosition();
 #endif ENABLE_ZEROSTICK
+  }
 
 #if ENABLE_PS3_CONTROLLER
   readPs3InputPosition();
@@ -426,6 +431,7 @@ void readPs3InputPosition()
 {
   if (Ps3.isConnected())
   {
+    g_ps_controller_enabled = true;
     // Process the X axis
     if (NULL != Ps3.data.analog.stick.lx)
     {
