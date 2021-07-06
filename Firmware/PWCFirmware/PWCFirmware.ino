@@ -212,6 +212,7 @@ void loop()
 
 #if ENABLE_PS4_CONTROLLER
   readPs4InputPosition();
+  readPs4Battery();
 #endif ENABLE_PS4_CONTROLLER
 
   updateDigipotOutputs();
@@ -405,7 +406,7 @@ void ps3OnConnect()
 
 
 /**
-   Read and report the state of the controller battery
+   Read and report the state of the PS3 controller battery
 */
 void readPs3Battery()
 {
@@ -477,6 +478,23 @@ void readPs3InputPosition()
 
 #if ENABLE_PS4_CONTROLLER
 /**
+   Read and report the state of the PS4 controller battery
+*/
+void readPs4Battery()
+{
+#if ENABLE_PS4_DEBUGGING
+  Serial.printf("Battery Level : %d\n", PS4.Battery());
+  Serial.print("Charging: ");
+  if(PS4.Charging())
+  {
+    Serial.println("YES");
+  } else {
+    Serial.println("no");
+  }
+#endif ENABLE_PS4_DEBUGGING
+}
+
+/**
    Read the right joystick from a paired PS4 controller (BLE)
 */
 void readPs4InputPosition()
@@ -486,7 +504,7 @@ void readPs4InputPosition()
     // Process the X axis
     if (PS4.RStickX())
     {
-      float x_position = PS4.RStickX(); // What type of values do we get? Decimals?
+      int8_t x_position = PS4.RStickX(); // What type of values do we get? Decimals?
 #if ENABLE_PS4_DEBUGGING
       Serial.printf("Right stick X at %d\n", x_position);
 #endif ENABLE_PS4_DEBUGGING
@@ -506,7 +524,7 @@ void readPs4InputPosition()
     // Process the Y axis
     if (PS4.RStickY())
     {
-      float y_position = PS4.RStickY(); // What type of values do we get? Decimals?
+      int8_t y_position = PS4.RStickY(); // What type of values do we get? Decimals?
 #if ENABLE_PS4_DEBUGGING
       Serial.printf("Right stick Y at %d\n", y_position);
 #endif ENABLE_PS4_DEBUGGING
