@@ -1,7 +1,7 @@
 Permobil Wheelchair Controller
 ==============================
 Copyright 2021 SuperHouse Automation Pty Ltd <www.superhouse.tv>  
-Designed by Jonathan Oxer
+Designed by Jonathan Oxer and Chris Fryer.
 
 Connects to a Permobil electric wheelchair controller, and emulates the
 signals from a wheelchair joystick so that the chair can be controlled
@@ -11,7 +11,8 @@ Includes an I2C header so that a ZeroStick zero deflection joystick can
 be connected.
 
 Includes an ESP32 so that the chair can be controlled using WiFi or
-Bluetooth.
+Bluetooth. The example firmware includes support for both PS3 and PS4
+game controllers.
 
 Also exposes the "5th Button" input to the chair as a test point for
 experimentation.
@@ -22,7 +23,7 @@ Features:
 
  * 1 x chair controller output.
  * Derives 12V from the host wheelchair controller for reference
-    voltage..
+    voltage.
  * Requires 5V power via USB.
 
 More information is available at:
