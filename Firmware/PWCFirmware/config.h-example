@@ -1,8 +1,8 @@
 /* ----------------- General config -------------------------------- */
 /* Input options */
 #define   ENABLE_ZEROSTICK           true
-#define   ENABLE_PS3_CONTROLLER      true
-#define   ENABLE_PS4_CONTROLLER      false
+#define   ENABLE_PS3_CONTROLLER      false
+#define   ENABLE_PS4_CONTROLLER      true
 
 /* Output options */
 #define   ENABLE_DIGIPOT_OUTPUT      true
@@ -11,17 +11,17 @@
 #define   SERIAL_BAUD_RATE       115200  // Speed for USB serial console
 
 /* Debugging options */
-#define   ENABLE_DIGIPOT_DEBUGGING   true
+#define   ENABLE_DIGIPOT_DEBUGGING   false
 #define   ENABLE_ZEROSTICK_DEBUGGING false
 #define   ENABLE_PS3_DEBUGGING       false
 #define   ENABLE_PS4_DEBUGGING       false
 
 /* ZeroStick input behaviour */
-#define   INPUT_FULL_SCALE_GRAMS    150  // Force required to achieve 100% full scale
+#define   INPUT_FULL_SCALE_GRAMS    150  // Force required to achieve 100% full scale. Lower value is more sensitive.
 #define   INPUT_DEAD_SPOT_SIZE       10  // +/- this % will be ignored
 
 /* Game controller input behaviour */
-#define   BLE_MAC   "b8:f6:b1:13:b5:90"
+#define   BLE_MAC   "aa:aa:bc:cb:bc:cb"  // Mac address that Playstation controller will bind to
 
 /* Digipot behaviour */
 #define   DIGIPOT_SPEED               1  // Multiply joystick position to increase sensitivity
@@ -37,7 +37,7 @@
 //#define   B1_BUTTON_PIN               9  // Pull this pin to GND for B1 = right click
 
 /* Load cell inputs */
-#define   LOAD_CELL_RATING_GRAMS    300  // Force required to achieve 100% full scale
+#define   LOAD_CELL_RATING_GRAMS    300  // The maximum rating of the load cell
 #define   LOAD_CELL_FULL_SCALE     4200
 
 /* PS3 inputs */

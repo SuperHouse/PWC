@@ -23,11 +23,11 @@
                      -100%
 
    External dependencies. Install using Arduino library manager:
-     "SparkFun Qwiic Scale NAU7802" by SparkFun Electronics
-     "PS3 Controller Host" by Jeffrey van Pernis https://github.com/jvpernis/esp32-ps3
+     * "SparkFun Qwiic Scale NAU7802" by SparkFun Electronics
+     * "PS3 Controller Host" by Jeffrey van Pernis https://github.com/jvpernis/esp32-ps3
 
    External dependencies. Install by downloading the ZIP file:
-     "PS4-esp32" by aed3 https://github.com/aed3/PS4-esp32
+     * "PS4-esp32" by aed3 https://github.com/aed3/PS4-esp32
      It may need to be this specific version, if the latest version
      above fails to read values from the controller:
      https://github.com/aed3/PS4-esp32/tree/d23311c8489f2538c8e49d6e39dc33b19e0edbcb
@@ -36,24 +36,15 @@
      www.superhouse.tv/pwc
 
    To do:
-    - PS4 support is untested. I can't compile sixaxispairtool on my Mac at
-      the moment.
-    - Zero offsets are currently hard-coded. These should be set at startup
-      and when tare is run.
-    - Do we need setZeroOffset() after calculateZeroOffset() in setup?
+     * Zero offsets are currently hard-coded. These should be set at startup
+       and when tare is run.
+     * Do we need setZeroOffset() after calculateZeroOffset() in setup?
 
    ESP32 pin assignments:
-     D0:
-     D1:
-     D2:
-     D3:
-     D4:  SDA
-     D5:  SCL
-     D6:  Tare pin
-     D7:  Disable pin
-     D8:
-     D9:
-     D10:
+     * GPIO21:  SDA
+     * GPIO22:  SCL
+     * GPIO25:  Tare pin (active low)
+     * GPIO26:  Disable pin (active low)
 
    By:
     Chris Fryer <chris.fryer78@gmail.com>
@@ -61,7 +52,7 @@
 
    Copyright 2021 SuperHouse Automation Pty Ltd www.superhouse.tv
 */
-#define VERSION "2.1"
+#define VERSION "2.2"
 /*--------------------------- Configuration ---------------------------------*/
 // Configuration should be done in the included file:
 #include "config.h"
@@ -425,7 +416,7 @@ void readPs3Battery()
 }
 
 /**
-   Read the right joystick from a paired PS4 controller (BLE)
+   Read the right joystick from a paired PS3 controller (BLE)
 */
 void readPs3InputPosition()
 {
@@ -435,7 +426,7 @@ void readPs3InputPosition()
     // Process the X axis
     if (NULL != Ps3.data.analog.stick.lx)
     {
-      int8_t x_position = Ps3.data.analog.stick.rx; // What type of values do we get? Decimals?
+      int8_t x_position = Ps3.data.analog.stick.rx; // We get values in the range -128 to 127
 #if ENABLE_PS3_DEBUGGING
       Serial.printf("Right stick X at %d\n", x_position);
 #endif ENABLE_PS3_DEBUGGING
@@ -455,7 +446,7 @@ void readPs3InputPosition()
     // Process the Y axis
     if (NULL != Ps3.data.analog.stick.ly)
     {
-      int8_t y_position = Ps3.data.analog.stick.ry; // What type of values do we get? Decimals?
+      int8_t y_position = Ps3.data.analog.stick.ry; // We get values in the range -128 to 127
 #if ENABLE_PS3_DEBUGGING
       Serial.printf("Right stick Y at %d\n", y_position);
 #endif ENABLE_PS3_DEBUGGING
@@ -504,7 +495,7 @@ void readPs4InputPosition()
     // Process the X axis
     if (PS4.RStickX())
     {
-      int8_t x_position = PS4.RStickX(); // What type of values do we get? Decimals?
+      int8_t x_position = PS4.RStickX(); // We get values in the range -128 to 127
 #if ENABLE_PS4_DEBUGGING
       Serial.printf("Right stick X at %d\n", x_position);
 #endif ENABLE_PS4_DEBUGGING
@@ -524,7 +515,7 @@ void readPs4InputPosition()
     // Process the Y axis
     if (PS4.RStickY())
     {
-      int8_t y_position = PS4.RStickY(); // What type of values do we get? Decimals?
+      int8_t y_position = PS4.RStickY(); // We get values in the range -128 to 127
 #if ENABLE_PS4_DEBUGGING
       Serial.printf("Right stick Y at %d\n", y_position);
 #endif ENABLE_PS4_DEBUGGING
